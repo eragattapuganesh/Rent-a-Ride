@@ -1,0 +1,48 @@
+# docker-compose.yml
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:6
+    container_name: rentaride-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: rentaride-backend
+    restart: unless-stopped
+    env_file:
+      - infra/.env.backend
+    environment:
+      # Fallbacks (compose will override with env_file values)
+      - MONGO_URI=mongodb://mongo:27017/rentaride
+      - PORT=8080
+      - CLIENT_URL=http://localhost
+    depends_on:
+      - mongo
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+      args:
+        # The frontend will call /api which nginx proxies to backend
+        VITE_API_BASE_URL: /api
+    container_name: rentaride-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    # No env file needed because requests go to relative /api
+
+volumes:
+  mongo_data:

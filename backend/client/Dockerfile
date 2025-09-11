@@ -1,22 +1,17 @@
-# client/Dockerfile
-FROM node:20-alpine AS build
+# backend/Dockerfile
+FROM node:18-alpine AS build
+
 WORKDIR /app
+# copy package files first for layer caching
+COPY backend/package*.json ./
+RUN npm ci --production
 
-COPY client/package*.json ./
-RUN npm ci
+# copy app source
+COPY backend/ ./
 
-COPY client/ ./
+ENV NODE_ENV=production
+EXPOSE 5000
 
-# If your React app uses Vite envs, this will be available at build time
-# You can override during docker build with: --build-arg VITE_API_BASE_URL=/api
-ARG VITE_API_BASE_URL=/api
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+# Use start script from package.json (ensure backend/package.json has "start")
+CMD ["npm", "start"]
 
-RUN npm run build
-
-FROM nginx:alpine
-# Our nginx config will proxy /api to the backend container
-COPY infra/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx","-g","daemon off;"]

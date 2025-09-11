@@ -1,16 +1,18 @@
-# client/Dockerfile
-FROM node:18-alpine AS build
-WORKDIR /app
-COPY client/package*.json ./
-RUN npm ci
-COPY client/ ./
-# build (Vite creates /dist typically)
-RUN npm run build
+server {
+    listen 80;
+    server_name _;
 
-FROM nginx:stable-alpine
-# SPA: serve built files
-COPY --from=build /app/dist /usr/share/nginx/html
-# SPA fallback for client-side routing
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # proxy API requests to backend (if client and backend are on same host & you want nginx to forward)
+    location /api/ {
+        proxy_pass http://backend:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
